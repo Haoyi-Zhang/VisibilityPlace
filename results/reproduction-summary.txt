@@ -1,0 +1,68 @@
+# Clean standalone reproduction
+
+Date: 2026-09-19
+Repository root: visibility-complete-monitor/
+Execution: one local worker; output directories absent before launch
+
+## Commands and outputs
+
+$ python3 test.py
+test_all_models_validate (test_contract.ContractTests.test_all_models_validate) ... ok
+test_boolean_certificate_integer_rejected (test_contract.ContractTests.test_boolean_certificate_integer_rejected) ... ok
+test_bounded_exhaustive_three_vertex_universe (test_contract.ContractTests.test_bounded_exhaustive_three_vertex_universe) ... ok
+test_checker_command_without_site_packages (test_contract.ContractTests.test_checker_command_without_site_packages) ... ok
+test_compilers_are_structurally_equal (test_contract.ContractTests.test_compilers_are_structurally_equal) ... ok
+test_false_vacuity_rejected (test_contract.ContractTests.test_false_vacuity_rejected) ... ok
+test_fan_baseline_gap (test_contract.ContractTests.test_fan_baseline_gap) ... ok
+test_fixed_seed_differential_fuzz (test_contract.ContractTests.test_fixed_seed_differential_fuzz) ... ok
+test_flow_mutation_rejected (test_contract.ContractTests.test_flow_mutation_rejected) ... ok
+test_local_hook_rejected (test_contract.ContractTests.test_local_hook_rejected) ... ok
+test_negative_overflow_rejected (test_contract.ContractTests.test_negative_overflow_rejected) ... ok
+test_oversized_sparse_lists_rejected (test_contract.ContractTests.test_oversized_sparse_lists_rejected) ... ok
+test_primal_dual_equality (test_contract.ContractTests.test_primal_dual_equality) ... ok
+test_removed_monitor_rejected (test_contract.ContractTests.test_removed_monitor_rejected) ... ok
+test_representative_statuses (test_contract.ContractTests.test_representative_statuses) ... ok
+test_retained_certificates_when_present (test_contract.ContractTests.test_retained_certificates_when_present) ... ok
+test_suite_size_and_identifiers (test_contract.ContractTests.test_suite_size_and_identifiers) ... ok
+test_tiny_optima (test_contract.ContractTests.test_tiny_optima) ... ok
+test_tiny_path_semantics (test_contract.ContractTests.test_tiny_path_semantics) ... ok
+test_unknown_flow_edge_rejected (test_contract.ContractTests.test_unknown_flow_edge_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 4.603s
+
+OK
+{"errors": 0, "failures": 0, "passed": true, "peak_rss_kib": 180056, "process_cpu_seconds_recorded": 7.138877212, "tests": 20, "wall_seconds": 5.343210946999989}
+[resource] wall=6.94 user=6.92 sys=0.79 maxrss_kib=180056
+
+$ python3 exhaustive.py --out replay-exhaustive
+{"all_bruteforce_classifications_complete": true, "all_case_ids_unique": true, "all_compilers_equal": true, "all_models_valid": true, "all_semantics_equal": true, "cpu_seconds": 2.783442737, "expected_cases": 13720, "max_compiled_edges": 21, "max_compiled_nodes": 17, "max_realizations": 5, "peak_rss_kib": 103340, "schema": "vcm-exhaustive-summary-1", "status_counts": {"infeasible": 8500, "optimal": 1640, "vacuous": 3580}, "total_cases": 13720, "universe": {"edge_options_per_slot": 7, "failure_budgets": "all integers from zero through monitor count", "forward_edge_slots": 3, "initial_restriction_values": 2, "monitor_choice": "zero or one export monitor at each vertex; costs 1,2,3", "source": 0, "target": 2, "vertices": 3}, "wall_seconds": 2.7921315370000457, "workers": 1}
+[resource] wall=4.38 user=4.35 sys=0.38 maxrss_kib=103340
+
+$ python3 fuzz.py --out replay-fuzz
+{"all_bruteforce_status_and_cost_equal": true, "all_certificates_accepted": true, "all_compilers_equal": true, "all_semantics_equal": true, "cpu_seconds": 0.2458337460000002, "max_realizations": 16, "peak_rss_kib": 132772, "random_cases": 192, "schema": "vcm-fuzz-summary-1", "seed": 20260918, "status_counts": {"infeasible": 104, "optimal": 25, "vacuous": 71}, "targeted_cases": 8, "total_cases": 200, "wall_seconds": 0.22747696299995823}
+[resource] wall=2.48 user=2.67 sys=0.51 maxrss_kib=132900
+
+$ python3 run.py pilot --out replay-pilot
+{"cases": 7, "claim_scope": "owned synthetic acyclic export-only policy models; no deployed BGP claim", "controls_rejected": 20, "degree_worse": 4, "exact_oracle_cases": 3, "greedy_worse": 3, "infeasible": 1, "max_certificate_bytes": 15670, "max_compiled_edges": 4007, "max_compiled_nodes": 2033, "max_horizon": 14, "max_monitors": 31, "max_physical_edges": 1428, "max_physical_nodes": 500, "optimal": 5, "vacuous": 1}
+[resource] wall=4.39 user=4.05 sys=1.08 maxrss_kib=331836
+
+$ python3 run.py reproduce --out replay
+{"cases": 120, "claim_scope": "owned synthetic acyclic export-only policy models; no deployed BGP claim", "controls_rejected": 20, "degree_worse": 78, "exact_oracle_cases": 44, "greedy_worse": 58, "infeasible": 12, "max_certificate_bytes": 16711, "max_compiled_edges": 4017, "max_compiled_nodes": 2033, "max_horizon": 14, "max_monitors": 31, "max_physical_edges": 1428, "max_physical_nodes": 500, "optimal": 96, "vacuous": 12}
+[resource] wall=14.14 user=12.58 sys=2.34 maxrss_kib=419136
+
+$ python3 run.py compare --observed replay
+semantic rows, summary, all control outcomes, and all 120 exact certificates match; timing excluded
+
+$ python3 analyze.py --results replay --out replay-derived
+derived tables and plot data from 120 case rows
+
+$ python3 audit.py --campaign replay --derived replay-derived --fuzz replay-fuzz --exhaustive replay-exhaustive
+{"accepted": true, "bounded_exhaustive_cases": 13720, "campaign_certificates": 120, "claim_rows": 25, "derived_files": 8, "differential_cases": 200, "external_resource_rows": 27, "reference_rows": 58, "timing_fields_excluded": ["checker_ms", "cpu_seconds", "peak_rss_kib", "producer_ms", "wall_seconds"]}
+
+$ python3 -S run.py check --model inputs/example-model.json --certificate inputs/example-certificate.json
+{"accepted": true, "compiled_edges": 49, "compiled_nodes": 45, "cost": 12, "dual_value": 12, "status": "optimal"}
+
+## Result
+
+All documented standalone commands completed with exit status 0.

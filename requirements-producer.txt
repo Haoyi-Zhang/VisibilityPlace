@@ -1,0 +1,3 @@
+# Producer-only dependencies.  The checker path uses the Python standard library.
+networkx
+scipy

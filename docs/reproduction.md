@@ -6,9 +6,11 @@ The campaign uses one Python process and one worker under a 3 GiB address-space 
 
 The deterministic suite contains 120 owned synthetic models: 36 Tiny, 48 Layered, 12 Fan, 12 Infeasible, and 12 Vacuous. Maximum declared dimensions are 500 physical vertices, 2,000 permitted physical edges (1,428 observed), 32 permitted monitor components (31 observed), and horizon 16 (14 observed). Retained outcomes are 96 optimal, 12 infeasible, and 12 vacuous. The maximum compiled graph has 2,033 vertices and 4,017 edges; the largest certificate is 16,711 bytes.
 
-Direct physical semantics, independently compiled paths, and brute-force placement agree on 44 retained cases. All 120 certificates are accepted. All 20 malformed or out-of-class controls are rejected. Twenty contract tests pass.
+Direct physical semantics, independently compiled paths, and brute-force placement agree on 44 retained cases. All 120 retained certificates are accepted by the repaired checker. All 21 malformed or out-of-class controls are rejected. Twenty-four contract tests pass.
 
-The retained campaign measured about 7.51 CPU seconds, 7.51 wall seconds, and 410,016 KiB peak process RSS in its recorded environment. These values are descriptive only; exact proof objects, not speed, support correctness claims.
+The historical retained campaign measured about 7.51 CPU seconds, 7.51 wall seconds, and 410,016 KiB peak process RSS. Its Python and dependency versions were not preserved and cannot be recovered from the evidence. These values are retained as descriptive observations; no version fingerprint is invented.
+
+The current repair replay was actually run on the platform and dependency set recorded in `docs/environment.md`. Its resource measurements are separate run-local observations, not replacements for the historical record or portable performance guarantees.
 
 ## Complete bounded three-vertex universe
 
@@ -22,7 +24,7 @@ models. Every model validates; producer and checker compilers agree edge-for-edg
 
 ## Fixed-seed differential campaign
 
-`fuzz.py` runs 192 generated small DAGs and eight targeted semantic edge cases under seed `20260918`. The targeted cases cover zero monitors, initial restriction with boundary suppression, source and target monitors, co-located components, `either` actions, first target arrival, restriction suppression, and high failure budgets. For every one of the 200 cases it requires:
+`fuzz.py` runs 192 generated small DAGs and eight targeted semantic edge cases under seed `20260918`. For every one of the 200 cases it requires:
 
 1. edge-for-edge equality of producer and checker compiled graphs;
 2. equality of direct physical realizations and compiled path observations;
@@ -31,7 +33,24 @@ models. Every model validates; producer and checker compilers agree edge-for-edg
 
 The retained run has 25 optimal, 104 infeasible, and 71 vacuous cases and reaches 16 realizations in one model. Runtime fields are retained as observations but excluded from replay equality. This campaign is auxiliary implementation evidence, not a general proof or workload sample.
 
-## Clean commands
+## Three-status regression and executable bounds
+
+The supplied `Empty` model and `optimal` certificate were executed against the pre-repair checker and were accepted because the zero-flow/potential arithmetic did not independently require sink reachability. The repaired `optimal` branch first reconstructs the graph and rejects the same candidate with `declared optimal status has no realizable path`. The opposite forged status, a `vacuous` certificate on reachable case `T000`, is also rejected. Both directions are retained as controls and unit tests.
+
+The parser admits monitor costs through `10^6` and rejects `10^6+1`. The certificate checker admits exact nonnegative integer fields through `10^18` (subject to tighter per-field bounds) and rejects `10^18+1`. Tests exercise the boundary and the first value outside it. These limits are implementation limits rather than assumptions of the mathematical theorem.
+
+## Clean installation and commands
+
+The precise current environment and install commands are in `docs/environment.md`. In brief:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade 'pip==25.1.1'
+python -m pip install -r requirements-producer.txt
+```
+
+`test.py`, `fuzz.py`, `pilot`, and `reproduce` call the producer and need NumPy/SciPy/NetworkX. `run.py check`, `compare`, and `audit.py` are standard-library-only once results exist.
 
 Every output directory named below must be absent or empty:
 
@@ -41,28 +60,43 @@ python3 exhaustive.py --out replay-exhaustive
 python3 fuzz.py --out replay-fuzz
 python3 run.py pilot --out replay-pilot
 python3 run.py reproduce --out replay
-python3 run.py compare --observed replay
+python3 run.py compare --observed replay --mode semantic
+python3 run.py compare --observed replay --mode strict
 python3 analyze.py --results replay --out replay-derived
 python3 audit.py --campaign replay --derived replay-derived \
-  --fuzz replay-fuzz --exhaustive replay-exhaustive
+  --fuzz replay-fuzz --exhaustive replay-exhaustive --mode semantic
+python3 audit.py --campaign replay --derived replay-derived \
+  --fuzz replay-fuzz --exhaustive replay-exhaustive --mode strict
 python3 -S run.py check --model inputs/example-model.json \
                         --certificate inputs/example-certificate.json
 ```
 
-`compare` excludes `producer_ms` and `checker_ms` but requires equality of all other case fields, the summary, all 20 control rows, and every certificate object. The analyzer omits timings from deterministic manuscript data. `audit` rechecks every certificate; compares retained and replayed semantic objects, derived files, bounded-exhaustive rows, and differential rows; verifies required claim-ledger fields and source URLs; and requires exactly 58 unique cited rows in `docs/reference-audit.csv`.
+## Strict and semantic comparison contracts
 
-The final `python3 -S` command disables site packages. Its success demonstrates that the documented checker acceptance path does not need the producer's SciPy or NetworkX dependencies. It does not show that every future Python implementation or platform is supported.
+`--mode strict` compares all certificate objects, all 21 controls, the aggregate summary, and every non-runtime case field. `producer_ms` and `checker_ms` are excluded; `lp_objective`, `rounding_alpha`, selected-witness details, and certificate bytes participate. Strict audit compares all eight derived files. This is the fixed-environment object-replication contract.
+
+`--mode semantic` revalidates every produced certificate and requires matching status and certified optimum. It also compares deterministic model dimensions, oracle flags, baselines, summary, and controls, while excluding floating producer diagnostics and witness identity. Semantic audit compares seven model/status/baseline-derived files and excludes the certificate-byte scaling file, because a distinct valid witness can have a different serialized size.
+
+Thus a strict match establishes replication of the retained objects and diagnostic strings in the documented pinned environment; a semantic match establishes that newly produced objects have the retained statuses and optima and are valid under the current independent checker. Neither claim extends automatically to every future dependency release.
+
+## Current-input validation rather than snapshot identity
+
+Certificates carry the neutral `case` string but no model-content digest. Compiler identifiers follow input-array order. The checker always rebuilds and validates against the supplied current input; it does not claim that every model edit forces regeneration. A test increases a nonbinding horizon and confirms that the old object can remain valid. Reordering arrays may instead renumber identifiers and cause rejection. Only current-input acceptance establishes the reported result for that input.
 
 ## Repairs retained in the record
 
-1. **Pilot subset.** The first seven-case pilot solved its scientific cases but its summary function referenced four control identifiers omitted from the subset. The repaired subset includes `T000`, `T001`, `I000`, `V000`, `L012`, `L037`, and `F007`, exercises all statuses and maximum scale, and rejects all controls. The 120-case campaign was unaffected.
-2. **Deterministic derived data.** A legacy `scaling.csv` mixed deterministic graph/certificate fields with run-local timings. The analyzer now excludes timings from manuscript data. No model, certificate, status, cost, baseline result, or plotted certificate-size point changed.
-3. **Checker dependency path.** `run.py` formerly imported the producer module before dispatch, contradicting the documented standard-library checker route. Producer imports are now lazy, and the checker command is tested under `python3 -S`.
-4. **Strict JSON integers and sparse bounds.** Python booleans could previously compare equal to `0` or `1` in a few certificate fields. The checker now requires exact integer types and rejects negative overflow, unknown edge identifiers, and sparse/path lists longer than the reconstructed graph permits.
-5. **Label-cut boundary citation.** An earlier manuscript sentence incorrectly conjoined two restrictions proved separately in Zhang and Fu: maximum source--sink path length two, and maximum label frequency two. The paper, proof notes, source ledger, and related-work matrix now state the separate results and note that their length-two/frequency-three refinement is not a length-two/frequency-two hardness theorem.
+1. **Pilot subset.** The first seven-case pilot solved its scientific cases but its summary function referenced four control identifiers omitted from the subset. The repaired subset includes `T000`, `T001`, `I000`, `V000`, `L012`, `L037`, and `F007`.
+2. **Deterministic derived data.** A legacy `scaling.csv` mixed deterministic graph/certificate fields with run-local timings. The analyzer now excludes timings from manuscript data.
+3. **Checker dependency path.** Producer imports are lazy, and the checker command is tested under `python3 -S`.
+4. **Strict integer and sparse bounds.** The checker requires exact integer types and rejects negative overflow, unknown identifiers, and overlong sparse/path lists.
+5. **Label-cut citation.** The paper now states the path-length-two and frequency-two hardness restrictions separately.
+6. **Three-status soundness.** The optimal branch now requires reconstructed reachability; both forged status directions are negative controls.
+7. **Checker scan complexity.** Checker-side topological scans use deques without repeated `pop(0)`, queue sorting, or adjacency sorting; selected-list validation uses adjacent comparisons.
+8. **Replay semantics.** Floating diagnostics now have an explicit strict/semantic contract rather than being ambiguously included or excluded.
+9. **Snapshot wording and implementation bounds.** Documentation now matches the actual plain case identifier, input-order numbering, cost bound, and certificate-integer cap.
 
-The first four are implementation/workflow repairs; the fifth is a scientific-claim correction. None changes the frozen positive theorem or retained numerical results.
+None of these repairs changes the 120 retained model statuses, optimum costs, certificate objects, baseline values, or plotted quantitative data.
 
 ## Interpretation
 
-A successful replay regenerates the same finite certificate objects and deterministic analysis data and validates them in the tested environment. It is not bit-level identity of third-party solver internals, proof-assistant verification, independent peer review, evidence about deployed routing, or a guarantee against all software defects.
+A successful strict replay in the recorded current environment reproduces the retained finite objects and floating diagnostics, excluding run-local milliseconds. A successful semantic replay regenerates valid proof objects with the retained statuses and optima. Neither is proof-assistant verification, independent peer review, evidence about deployed routing, or a guarantee against every software defect.

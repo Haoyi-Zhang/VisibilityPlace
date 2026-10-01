@@ -1,7 +1,7 @@
 {
   "cases": 7,
   "claim_scope": "owned synthetic acyclic export-only policy models; no deployed BGP claim",
-  "controls_rejected": 20,
+  "controls_rejected": 21,
   "degree_worse": 4,
   "exact_oracle_cases": 3,
   "greedy_worse": 3,

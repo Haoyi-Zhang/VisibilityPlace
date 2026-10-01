@@ -49,7 +49,19 @@ def run_controls(models, certificates):
     c = deepcopy(opt1); c["selected"] = list(reversed(c["selected"]))
     rows.append(_expect_rejection("unsorted-selected", by_case["T001"], c))
     c = {"schema":"vcm-certificate-1","case":"T000","status":"vacuous","k":1,"cost":0}
-    rows.append(_expect_rejection("false-vacuity", by_case["T000"], c))
+    rows.append(_expect_rejection("reachable-false-vacuity", by_case["T000"], c))
+
+    empty_model = {
+        "case": "Empty", "family": "Boundary", "nodes": 2, "edges": [],
+        "monitors": [], "obligation": [0, 1, 0], "horizon": 0, "failures": 0,
+    }
+    empty_optimal = {
+        "schema": "vcm-certificate-1", "case": "Empty", "status": "optimal",
+        "k": 1, "selected": [], "cost": 0,
+        "potential": [0, 1, 0, 0, 1, 1, 1, 1, 1, 1],
+        "flow_value": 0, "flow": [], "overflow": [], "dual_value": 0,
+    }
+    rows.append(_expect_rejection("unreachable-false-optimal", empty_model, empty_optimal))
     c = deepcopy(inf); c["witness"] = c["witness"][:-1]
     rows.append(_expect_rejection("truncated-infeasible-witness", by_case["I000"], c))
     c = deepcopy(inf); c["all_monitor_count"] += 1

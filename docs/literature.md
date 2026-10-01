@@ -13,17 +13,17 @@ This record separates theorem dependence, routing motivation, and writing calibr
 | Necula, *Proof-Carrying Code*; Wetzler et al., *DRAT-trim*; exact LP certificate work | targeted technical pass | Independent evidence checking can reduce the trusted base without replacing the mathematical model. | The certificate here is application-specific: coverage potentials plus integer flow/overflow. |
 | Header Space Analysis, VeriFlow, Batfish, Minesweeper, Plankton, and NetComplete | targeted technical pass | Network verification compiles finite semantics for checking or synthesis. | The present model is narrower and does not claim deployed configuration completeness. |
 
-The closest collision is two-terminal k-hurdle optimization. The manuscript therefore does **not** claim a new hurdle algorithm, LP integrality theorem, threshold rule, or min-cost-flow dual. Its retained contribution is: (i) a linear policy-to-hurdle compiler preserving realization observations; (ii) a three-status certificate tied to the original model; (iii) a local exact-integer optimality witness; and (iv) explicit repeated-label and multi-obligation boundaries.
+The closest collision is two-terminal k-hurdle optimization. The manuscript therefore does **not** claim a new hurdle algorithm, LP integrality theorem, threshold rule, or min-cost-flow dual. Its retained contribution is: (i) a linear policy-to-hurdle compiler preserving realization observations; (ii) a three-status certificate tied to the original model; (iii) a local exact-integer optimality witness; and (iv) an explicit repeated-label boundary plus a separately scoped undirected explicit-path boundary. The latter is not a hardness theorem for adding obligations to the retained directed DAG source language.
 
 ## Formulation screen
 
 | Candidate formulation | Falsifier/resource issue | Decision |
 |---|---|---|
 | Explicit observation-set multicover | Binary-diamond family gives exponentially many distinct rows | Reject as main representation. |
-| Parameterize only by physical treewidth | Physical-star vertex-cover reduction | Reject. |
+| Parameterize a wider undirected explicit-path model only by host treewidth | Vertex cover reduces to supplied leaf--center--leaf paths on a star | Boundary for that wider interface only. |
 | One observation, no loss | State-unique case reduces to ordinary cut | Baseline only. |
 | Repeated monitor labels | Contains minimum label cut | Boundary. |
-| Arbitrary joint obligations | Demand incidence remains hard on a physical star | Boundary. |
+| Arbitrary joint obligations in the retained directed DAG language | The star construction cannot orient all triangle demands acyclically; bidirection creates two-cycles | Open/deferred; do not claim the wider reduction here. |
 | Cyclic policy graph | Requires new convergence/repeated-visit semantics | Exclude. |
 | Single obligation, acyclic graph, state-unique export monitors | Compiler bijection and certificate inequalities are falsifiable with exact small oracles | Retain. |
 | Specification/exhaustive checker only | Correct but does not provide scalable certifying optimization | Superseded. |

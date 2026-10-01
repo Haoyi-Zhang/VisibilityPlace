@@ -85,11 +85,25 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(Rejected):
             verify(model, bad)
 
-    def test_false_vacuity_rejected(self):
+    def test_reachable_false_vacuity_rejected(self):
         model = self.by_case["T000"]
         bad = {"schema":"vcm-certificate-1","case":"T000","status":"vacuous","k":1,"cost":0}
-        with self.assertRaises(Rejected):
+        with self.assertRaisesRegex(Rejected, "realizable path"):
             verify(model, bad)
+
+    def test_unreachable_false_optimal_rejected(self):
+        model = {
+            "case": "Empty", "family": "Boundary", "nodes": 2, "edges": [],
+            "monitors": [], "obligation": [0, 1, 0], "horizon": 0, "failures": 0,
+        }
+        candidate = {
+            "schema": "vcm-certificate-1", "case": "Empty", "status": "optimal",
+            "k": 1, "selected": [], "cost": 0,
+            "potential": [0, 1, 0, 0, 1, 1, 1, 1, 1, 1],
+            "flow_value": 0, "flow": [], "overflow": [], "dual_value": 0,
+        }
+        with self.assertRaisesRegex(Rejected, "no realizable path"):
+            verify(model, candidate)
 
     def test_local_hook_rejected(self):
         model = deepcopy(self.by_case["T000"])
@@ -193,6 +207,52 @@ class ContractTests(unittest.TestCase):
         inf["witness"] = inf["witness"] * (len(compile_model(inf_model)["edges"]) + 1)
         with self.assertRaises(Rejected):
             verify(inf_model, inf)
+
+
+    def test_monitor_cost_admission_boundary(self):
+        model = deepcopy(self.by_case["T000"])
+        model["monitors"][0][2] = 10**6
+        validate_model(model)
+        model["monitors"][0][2] = 10**6 + 1
+        with self.assertRaises(ValueError):
+            validate_model(model)
+
+    def test_certificate_integer_admission_boundary(self):
+        model = {
+            "case": "IntBound", "family": "Boundary", "nodes": 2,
+            "edges": [[0, 1, 0, "keep"]],
+            "monitors": [[0, "export", 1]],
+            "obligation": [0, 1, 0], "horizon": 1, "failures": 0,
+        }
+        certificate, _ = solve(model)
+        bound = 10**18
+        certificate["flow_value"] = bound
+        certificate["flow"] = [[edge_id, bound] for edge_id, _ in certificate["flow"]]
+        certificate["overflow"] = [[0, bound - 1]]
+        certificate["dual_value"] = 1
+        self.assertTrue(verify(model, certificate)["accepted"])
+
+        for field in ("flow_value", "dual_value"):
+            bad = deepcopy(certificate)
+            bad[field] = bound + 1
+            with self.subTest(field=field), self.assertRaises(Rejected):
+                verify(model, bad)
+        bad = deepcopy(certificate)
+        bad["flow"][0][1] = bound + 1
+        with self.assertRaises(Rejected):
+            verify(model, bad)
+        bad = deepcopy(certificate)
+        bad["overflow"][0][1] = bound + 1
+        with self.assertRaises(Rejected):
+            verify(model, bad)
+
+    def test_certificate_is_revalidated_not_snapshot_bound(self):
+        model = deepcopy(self.by_case["T000"])
+        certificate, _ = solve(model)
+        current_input = deepcopy(model)
+        current_input["horizon"] = 16
+        self.assertNotEqual(model, current_input)
+        self.assertTrue(verify(current_input, certificate)["accepted"])
 
     def test_checker_command_without_site_packages(self):
         completed = subprocess.run(

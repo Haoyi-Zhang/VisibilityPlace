@@ -22,13 +22,13 @@ This follows immediately from Lemmas 1 and 2. The optimization objective is pres
 
 ## Theorem 2: status trichotomy
 
-Exactly one case applies.
+Let `lambda` be the minimum number of monitor edges on a compiled source--sink path, and define `lambda=+infinity` when the sink is unreachable. Exactly one case applies.
 
-1. If no compiled source--sink path exists, the safety-only universal obligation is vacuous.
-2. Otherwise, assign length one to every monitor edge and zero to ordinary edges. If a shortest source--sink path has length less than `k`, selecting all components still leaves this path below the threshold, so the model is infeasible. The path is a certificate.
-3. If the all-monitor shortest length is at least `k`, selecting all components is feasible, and the positive-cost finite problem has an optimum.
+1. `lambda=+infinity`: no realization reaches the target, so the declared safety-only universal obligation is vacuous.
+2. `lambda<k`: the minimizing reachable path contains fewer than `k` monitor edges even when every component is available, so the instance is infeasible. That contiguous source--sink path is a certificate.
+3. `k<=lambda<+infinity`: the sink is reachable and selecting all components covers every path at level `k`; because the component set is finite and costs are positive, a minimum-cost feasible placement exists.
 
-The checker recomputes the relevant reachability or validates the path locally.
+The strict finite upper condition in the third item is essential. The arithmetic potential/flow conditions alone do not distinguish an unreachable graph from a zero-flow candidate. The checker therefore recomputes unreachability for `vacuous`, validates a reachable deficient path for `infeasible`, and separately recomputes reachability before accepting `optimal`.
 
 ## Lemma 3: compact LP and threshold integrality
 
@@ -73,11 +73,13 @@ A capacity of `C+1`, where `C=sum c_m`, is sufficient for unrestricted branches 
 
 If one monitor component may label several compiled edges, the `k=1` placement problem contains minimum label `s-t` cut: choose a minimum-cardinality set of labels whose edges meet every source--sink path (unit costs suffice for the reduction). Zhang and Fu prove NP-hardness under two **separate** restrictions: maximum path length two, and maximum label frequency two. Their length-two bounded-frequency refinement uses frequency three; they do not prove hardness with both bounds equal to two, and they give a polynomial algorithm for a disjoint-path/frequency-two subcase. Thus unique compiled occurrence is a substantive general tractability boundary, but no simultaneous `(length 2, frequency 2)` hardness claim is made.
 
-## Proposition 2: physical treewidth alone is insufficient for joint obligations
+## Proposition 2: physical treewidth alone is insufficient in a wider explicit-path model
 
-In the broader declared-obligation model, take a physical star with an unmonitorable center and one monitorable leaf for each vertex of an arbitrary graph `H`. For each edge `{u,v}` of `H`, declare the unique leaf--center--leaf path as an obligation. With one required observation and unit costs, a placement covers all obligations exactly when the corresponding vertices form a vertex cover of `H`. The physical topology has treewidth one and every obligation has length two. Therefore any claim based only on physical topology width fails when arbitrary obligation incidence is allowed.
+Define the **undirected explicit-path obligation model** as an undirected host graph `U`, a costed set of monitorable host vertices, and a supplied family of simple host paths. A placement is feasible when it selects at least one monitorable vertex on every supplied path. This model does not derive its path family from the directed persistent-bit source language.
 
-This proposition does not contradict the single-obligation state-unique theorem: it identifies a different interface whose demand incidence carries the hard graph.
+In this wider model, take a star with an unmonitorable center and one unit-cost monitorable leaf for each vertex of an arbitrary graph `H`. For every edge `{u,v}` of `H`, supply the unique leaf--center--leaf path between leaves `u` and `v`. A placement meets every supplied path exactly when the corresponding vertices form a vertex cover of `H`. The host topology has treewidth one and every supplied path has length two.
+
+The construction is deliberately not claimed inside the current directed acyclic source language. An arbitrary triangle of leaf-to-leaf demands cannot all be realized by one acyclic orientation of a star, and replacing every spoke by both directions creates directed two-cycles. The proposition therefore separates host width from demand incidence only for the explicitly defined wider interface; it does not prove that dropping only the single-obligation restriction of the retained DAG model is hard.
 
 ## Checker trust boundary
 
@@ -100,12 +102,14 @@ Aggregating `y_e = sum_{P containing e} w_P` gives a nonnegative source--sink fl
 
 ## Proposition 4: certificate size and checking complexity
 
-For compiled graph `(W,A)`, an optimal certificate stores `|W|` potentials, at most `|A|` positive flow entries, at most `|M|` positive overflow entries, and a selected list. It has `O(|W|+|A|+|M|)` entries. With producer return flow at most `C=sum c_m`, numeric values require logarithmic bits in `C+k` beyond identifiers. The checker reconstructs the graph and scans edges, sparse flow, balances, and monitor capacities once, so verification is linear in graph plus certificate representation. This does not bound LP or circulation production time.
+For compiled graph `(W,A)`, an optimal certificate stores `|W|` potentials, at most `|A|` positive flow entries, at most `|M|` positive overflow entries, and a selected list. It has `O(|W|+|A|+|M|)` entries. With producer return flow at most `C=sum c_m`, numeric values require logarithmic bits in `C+k` beyond identifiers.
+
+The implemented checker constructs adjacency lists in input order, uses queue-based topological scans, performs reachability by one graph traversal, verifies the selected list by adjacent comparisons, and scans edges, sparse flow, balances, and monitor capacities a constant number of times. Under unit-cost RAM operations on bounded-width identifiers/integers, its main verification work is `O(|W|+|A|+|certificate|)`. In a bit-complexity accounting, arithmetic cost also depends on the logarithmic widths of the admitted integers (the executable checker caps certificate integers at `10^18`). This proposition does not bound LP or circulation production time.
 
 ## Proposition 5: semantic monotonicity under realization-family inclusion
 
-For two models over the same components, costs, and hurdle, let `O(I)` be the family of observed-component sets. If `O(I1) subseteq O(I2)`, then every placement feasible for `I2` is feasible for `I1`; the feasible-set inclusion reverses, and `OPT(I1) <= OPT(I2)` whenever both optima exist. If `I1` is infeasible, a set of size below `k` in `O(I1)` also belongs to `O(I2)`, so `I2` is infeasible. This is semantic only: a changed compiled graph requires a fresh certificate because edge identifiers, potentials, and flows are model-specific.
+For two models over the same components, costs, and hurdle, let `O(I)` be the family of observed-component sets. If `O(I1) subseteq O(I2)`, then every placement feasible for `I2` is feasible for `I1`; the feasible-set inclusion reverses, and `OPT(I1) <= OPT(I2)` whenever both optima exist. If `I1` is infeasible, a set of size below `k` in `O(I1)` also belongs to `O(I2)`, so `I2` is infeasible. This is semantic only. A changed input must be revalidated against the checker reconstruction. Because the schema has no content digest and compiled identifiers follow input-array order, a semantically irrelevant change can leave an old object valid, whereas an array reorder can renumber it. The theorem does not assert snapshot binding or that every edit forces a fresh object.
 
 ## Reproduction claim boundary
 
-A clean replay compares every retained certificate object and all non-timing semantic case fields. Timing and floating-point diagnostics are not trusted equality fields. Matching replay establishes regeneration and checker acceptance of the same finite proof objects in the tested environment; it is not bit-level solver reproducibility, a mechanized proof, or evidence about deployed routing.
+The artifact exposes two replay contracts. Strict mode compares every certificate object and every non-runtime campaign field, including `lp_objective` and `rounding_alpha`; it is intended for fixed-environment replication. Semantic mode revalidates every produced certificate and compares status, certified optimum, model dimensions, oracle flags, baselines, summaries, and controls while excluding floating producer diagnostics and witness identity. Neither mode is bit-level reproduction of third-party solver internals, a mechanized proof, or evidence about deployed routing.

@@ -5,6 +5,8 @@ compiler so a producer defect is not accepted merely by replaying its output.
 """
 from __future__ import annotations
 
+from collections import deque
+
 from graph_types import finalize_graph
 from model import validate_model
 
@@ -81,17 +83,16 @@ def _dag_order(graph):
     indegree = [0] * len(graph["nodes"])
     for arc in graph["edges"]:
         indegree[arc["v"]] += 1
-    available = sorted(i for i, d in enumerate(indegree) if d == 0)
+    available = deque(i for i, degree in enumerate(indegree) if degree == 0)
     result = []
     while available:
-        u = available.pop(0)
+        u = available.popleft()
         result.append(u)
         for arc in graph["out"][u]:
             v = arc["v"]
             indegree[v] -= 1
             if indegree[v] == 0:
                 available.append(v)
-                available.sort()
     if len(result) != len(graph["nodes"]):
         raise AssertionError("checker compiled a cycle")
     return result

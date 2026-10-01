@@ -12,7 +12,8 @@ missing-overflow,rejected,dual monitor capacity inequality failed
 wrong-dual-objective,rejected,primal and dual objectives do not match
 unknown-monitor,rejected,bad selected monitor list
 unsorted-selected,rejected,selected monitors must be sorted and unique
-false-vacuity,rejected,declared vacuity has a realizable path
+reachable-false-vacuity,rejected,declared vacuity has a realizable path
+unreachable-false-optimal,rejected,declared optimal status has no realizable path
 truncated-infeasible-witness,rejected,witness does not reach the sink
 wrong-witness-count,rejected,witness does not prove infeasibility
 nonzero-vacuous-cost,rejected,vacuous cost must be the integer zero

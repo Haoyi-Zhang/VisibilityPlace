@@ -132,11 +132,22 @@ def _evaluate(models, out):
     return summary
 
 
-def _semantic_rows(path):
+STRICT_IGNORED_FIELDS = {"producer_ms", "checker_ms"}
+SEMANTIC_CASE_FIELDS = (
+    "case", "family", "status", "nodes", "physical_edges", "monitors",
+    "horizon", "failures", "k", "compiled_nodes", "compiled_edges",
+    "optimal_cost", "all_monitor_count", "greedy_cost", "degree_cost",
+    "exact_oracle", "accepted",
+)
+
+
+def _project_rows(path, mode):
     with Path(path).open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    ignored = {"producer_ms", "checker_ms"}
-    return [{k: v for k, v in row.items() if k not in ignored} for row in rows]
+    if mode == "strict":
+        return [{key: value for key, value in row.items()
+                 if key not in STRICT_IGNORED_FIELDS} for row in rows]
+    return [{key: row[key] for key in SEMANTIC_CASE_FIELDS} for row in rows]
 
 
 def main():
@@ -148,7 +159,9 @@ def main():
     p = sub.add_parser("check")
     p.add_argument("--model", type=Path, required=True)
     p.add_argument("--certificate", type=Path, required=True)
-    p = sub.add_parser("compare"); p.add_argument("--observed", type=Path, required=True)
+    p = sub.add_parser("compare")
+    p.add_argument("--observed", type=Path, required=True)
+    p.add_argument("--mode", choices=("semantic", "strict"), default="semantic")
     args = parser.parse_args()
     install_limits()
     cases = all_cases()
@@ -164,20 +177,26 @@ def main():
         return
     if args.command == "compare":
         expected = ROOT / "results" / "campaign"
-        if _semantic_rows(expected / "cases.csv") != _semantic_rows(args.observed / "cases.csv"):
-            raise ValueError("case semantics differ; timing columns were excluded")
+        if _project_rows(expected / "cases.csv", args.mode) != _project_rows(args.observed / "cases.csv", args.mode):
+            raise ValueError(args.mode + " campaign fields differ")
         if load_json(expected / "summary.json") != load_json(args.observed / "summary.json"):
             raise ValueError("summary differs")
-        if _semantic_rows(expected / "controls.csv") != _semantic_rows(args.observed / "controls.csv"):
+        if _project_rows(expected / "controls.csv", "strict") != _project_rows(args.observed / "controls.csv", "strict"):
             raise ValueError("control outcomes or rejection reasons differ")
         models = {m["case"]: m for m in cases}
         for case, model in models.items():
             cert = load_json(args.observed / "certificates" / (case + ".json"))
             verify(model, cert)
             expected_cert = load_json(expected / "certificates" / (case + ".json"))
-            if cert != expected_cert:
-                raise ValueError("certificate differs: " + case)
-        print("semantic rows, summary, all control outcomes, and all 120 exact certificates match; timing excluded")
+            if args.mode == "strict":
+                if cert != expected_cert:
+                    raise ValueError("certificate differs: " + case)
+            elif (cert.get("status"), cert.get("cost")) != (expected_cert.get("status"), expected_cert.get("cost")):
+                raise ValueError("certificate status or certified optimum differs: " + case)
+        if args.mode == "strict":
+            print("strict fixed-environment objects match: non-runtime rows, controls, and all 120 certificate objects")
+        else:
+            print("semantic fields and certified statuses/costs match; observed certificates were revalidated; floating diagnostics and witness identity excluded")
         return
     out = fresh_directory(args.out)
     if args.command == "pilot":

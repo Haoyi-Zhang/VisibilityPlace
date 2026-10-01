@@ -23,12 +23,12 @@ def topological_order(model):
     for u, v, _, _ in model["edges"]:
         adj[u].append(v)
         indeg[v] += 1
-    ready = deque(sorted(i for i, d in enumerate(indeg) if d == 0))
+    ready = deque(i for i, degree in enumerate(indeg) if degree == 0)
     order = []
     while ready:
         u = ready.popleft()
         order.append(u)
-        for v in sorted(adj[u]):
+        for v in adj[u]:
             indeg[v] -= 1
             if indeg[v] == 0:
                 ready.append(v)

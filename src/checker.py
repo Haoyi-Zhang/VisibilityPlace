@@ -70,11 +70,13 @@ def verify(model, certificate):
         "selected", "cost", "potential", "flow_value", "flow",
         "overflow", "dual_value",
     })
+    if not reachable(graph):
+        raise Rejected("declared optimal status has no realizable path")
     selected_list = certificate["selected"]
     if not isinstance(selected_list, list) or any(not _integer(x, 0, len(model["monitors"]) - 1)
                                                   for x in selected_list):
         raise Rejected("bad selected monitor list")
-    if selected_list != sorted(set(selected_list)):
+    if any(right <= left for left, right in zip(selected_list, selected_list[1:])):
         raise Rejected("selected monitors must be sorted and unique")
     selected = set(selected_list)
     cost = sum(model["monitors"][m][2] for m in selected)

@@ -20,8 +20,14 @@ sys.path.insert(0, str(ROOT / "src"))
 from checker import verify
 from instances import all_cases
 
-TIMING_FIELDS = {"producer_ms", "checker_ms"}
+STRICT_IGNORED_FIELDS = {"producer_ms", "checker_ms"}
 FUZZ_TIMING_FIELDS = {"wall_seconds", "cpu_seconds", "peak_rss_kib"}
+SEMANTIC_CASE_FIELDS = (
+    "case", "family", "status", "nodes", "physical_edges", "monitors",
+    "horizon", "failures", "k", "compiled_nodes", "compiled_edges",
+    "optimal_cost", "all_monitor_count", "greedy_cost", "degree_cost",
+    "exact_oracle", "accepted",
+)
 
 
 def load_json(path: Path):
@@ -46,10 +52,18 @@ def exact_file_tree(expected: Path, observed: Path):
     return len(expected_files)
 
 
-def audit_campaign(observed: Path):
+def _campaign_rows(path: Path, mode: str):
+    rows = csv_rows(path)
+    if mode == "strict":
+        return [{key: value for key, value in row.items()
+                 if key not in STRICT_IGNORED_FIELDS} for row in rows]
+    return [{key: row[key] for key in SEMANTIC_CASE_FIELDS} for row in rows]
+
+
+def audit_campaign(observed: Path, mode: str):
     expected = ROOT / "results" / "campaign"
-    if csv_rows(expected / "cases.csv", TIMING_FIELDS) != csv_rows(observed / "cases.csv", TIMING_FIELDS):
-        raise ValueError("campaign semantic rows differ")
+    if _campaign_rows(expected / "cases.csv", mode) != _campaign_rows(observed / "cases.csv", mode):
+        raise ValueError("campaign " + mode + " rows differ")
     if csv_rows(expected / "controls.csv") != csv_rows(observed / "controls.csv"):
         raise ValueError("campaign controls differ")
     if load_json(expected / "summary.json") != load_json(observed / "summary.json"):
@@ -62,9 +76,12 @@ def audit_campaign(observed: Path):
     for case, model in models.items():
         retained = load_json(expected / "certificates" / (case + ".json"))
         replayed = load_json(observed / "certificates" / (case + ".json"))
-        if retained != replayed:
-            raise ValueError("certificate differs: " + case)
         verify(model, replayed)
+        if mode == "strict":
+            if retained != replayed:
+                raise ValueError("certificate differs: " + case)
+        elif (retained.get("status"), retained.get("cost")) != (replayed.get("status"), replayed.get("cost")):
+            raise ValueError("certificate status or certified optimum differs: " + case)
     return len(models)
 
 
@@ -131,10 +148,21 @@ def main():
     parser.add_argument("--derived", type=Path, required=True)
     parser.add_argument("--fuzz", type=Path, required=True)
     parser.add_argument("--exhaustive", type=Path, required=True)
+    parser.add_argument("--mode", choices=("semantic", "strict"), default="semantic")
     args = parser.parse_args()
 
-    certificates = audit_campaign(args.campaign)
-    derived_files = exact_file_tree(ROOT / "results" / "derived", args.derived)
+    certificates = audit_campaign(args.campaign, args.mode)
+    if args.mode == "strict":
+        derived_files = exact_file_tree(ROOT / "results" / "derived", args.derived)
+    else:
+        semantic_derived = (
+            "analysis.json", "baselines.csv", "baselines.tex", "families.csv",
+            "families.tex", "fan.csv", "summary-macros.tex",
+        )
+        for name in semantic_derived:
+            if (ROOT / "results" / "derived" / name).read_bytes() != (args.derived / name).read_bytes():
+                raise ValueError("semantic derived file differs: " + name)
+        derived_files = len(semantic_derived)
     fuzz_cases = audit_fuzz(args.fuzz)
     exhaustive_cases = audit_exhaustive(args.exhaustive)
     claims, resources, references = audit_ledgers()
@@ -147,7 +175,9 @@ def main():
         "claim_rows": claims,
         "external_resource_rows": resources,
         "reference_rows": references,
-        "timing_fields_excluded": sorted(TIMING_FIELDS | FUZZ_TIMING_FIELDS),
+        "comparison_mode": args.mode,
+        "excluded_in_semantic_mode": sorted(STRICT_IGNORED_FIELDS | {"lp_objective", "rounding_alpha", "selected", "dual_value", "flow_value", "overflow", "certificate_bytes"}),
+        "timing_fields_excluded": sorted(STRICT_IGNORED_FIELDS | FUZZ_TIMING_FIELDS),
     }, sort_keys=True))
 
 

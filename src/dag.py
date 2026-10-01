@@ -1,22 +1,23 @@
 """Exact DAG scans used by the producer and baselines."""
 from __future__ import annotations
 
+from collections import deque
+
 INF = 10**18
 
 
 def topological(graph):
     indeg = [len(row) for row in graph["in"]]
-    ready = sorted(i for i, d in enumerate(indeg) if d == 0)
+    ready = deque(i for i, degree in enumerate(indeg) if degree == 0)
     order = []
     while ready:
-        u = ready.pop(0)
+        u = ready.popleft()
         order.append(u)
         for edge in graph["out"][u]:
             v = edge["v"]
             indeg[v] -= 1
             if indeg[v] == 0:
                 ready.append(v)
-                ready.sort()
     if len(order) != len(graph["nodes"]):
         raise ValueError("expected a DAG")
     return order

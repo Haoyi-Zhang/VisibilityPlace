@@ -127,6 +127,19 @@ Input decoding rejects duplicate JSON fields at every object depth and non-JSON 
 
 ## Repository map
 
+The optional manuscript diagrams are self-contained Python vector outputs:
+
+```bash
+python3 -m pip install -r requirements-figures.txt
+python3 -B figures/draw_schematics.py
+python3 -B figures/check_figures.py
+```
+
+For a full project checkout, generate the consumed copies with
+`python3 -B artifact/figures/draw_schematics.py --output paper/figures`.
+The semantic implementation and stored scientific results do not depend on
+Matplotlib or the manuscript directory.
+
 * `run.py`: pilot, full production, checking, strict/semantic comparison, and command routing.
 * `exhaustive.py`, `src/exhaustive_cases.py`: complete declared three-vertex universe.
 * `fuzz.py`, `src/fuzz_cases.py`: fixed-seed generated and targeted differential cases.
